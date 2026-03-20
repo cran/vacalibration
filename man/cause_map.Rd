@@ -2,38 +2,32 @@
 % Please edit documentation in R/cause_map.R
 \name{cause_map}
 \alias{cause_map}
-\title{Broad Cause Mapping}
+\title{Deriving Broad Cause of Death from CCVA Outputs}
 \usage{
 cause_map(df, age_group)
 }
 \arguments{
-\item{df}{Data frame. Outputs from \code{crossVA()} function in \code{openVA} for EAVA and \code{crossVA()} function in \code{openVA} for InSilicoVA and InterVA}
+\item{df}{Outputs from \code{codEAVA()} in \code{EAVA} for EAVA, and \code{codeVA()} and \code{prepCalibration()} in \code{openVA} for InSilicoVA and InterVA}
 
-\item{age_group}{Character. The age group of interest. "neonate" for deaths between 0-27 days, and "child" for 1-59 months.}
+\item{age_group}{Character. Indicates age group.
+
+\code{"neonate"} for deaths with 0-27 days of birth, and \code{"child"} for 1-59 months of birth.}
 }
 \value{
 Matrix. Rows are individuals. Columns are broad causes.
 This is a binary matrix (entries 0 or 1) with 1 indicating the broad cause of death for the individual.
 }
 \description{
-Maps individual-level specific (high resolution) cause of death (\code{codEAVA()} function
-in \code{EAVA} and \code{crossVA()} function in \code{openVA}) to broad causes.
+Takes individual-level cause of deaths (output from CCVA algorithms) as input, and maps them to pre-defined broad causes.
 }
 \examples{
 
-## COMSA-Mozambique Publicly Available Version
-## Example Individual-Level Specific (High-Resolution) Cause of Death Data
-data(comsamoz_public_openVAout)
-head(comsamoz_public_openVAout$data)  # head of the data
-comsamoz_public_openVAout$data[1,]  # ID and specific cause of death for individual 1
+## Publicly Available Cause-of-Death (COD) Data from COMSA–Mozambique
+comsamoz_CCVAoutput$neonate$eava # output from EAVA algorithm for age group "neonate"
+head(comsamoz_CCVAoutput$neonate$eava)  # specific COD for the first 6 deaths
 
-## mapped to broad cause
-## same as comsamoz_public_broad$data
-comsamoz_public_asbroad = cause_map(df = comsamoz_public_openVAout$data, age_group = "neonate")
-head(comsamoz_public_asbroad)
-
-### store broad cause map of the data
-data(comsamoz_public_broad)
-head(comsamoz_public_broad$data) # identical to head(comsamoz_public_asbroad)
+## broad cause mapping
+mapped_broad_cause = cause_map(df = comsamoz_CCVAoutput$neonate$eava, age_group = "neonate")
+head(mapped_broad_cause)  # broad COD for the first 6 deaths
 
 }

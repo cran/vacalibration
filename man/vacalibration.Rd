@@ -2,276 +2,309 @@
 % Please edit documentation in R/vacalibration.R
 \name{vacalibration}
 \alias{vacalibration}
-\title{VA-calibration function}
+\title{VA-Calibration}
 \usage{
 vacalibration(
   va_data = NULL,
   age_group = NULL,
   country = NULL,
-  calibmodel.type = c("Mmatprior", "Mmatfixed")[1],
-  Mmat.asDirich = NULL,
-  Mmat.fixed = NULL,
+  missmat_type = c("prior", "fixed", "samples")[1],
+  studycause_map = NULL,
+  missmat = NULL,
   donotcalib = NULL,
-  donot.calib_type = c("learn", "fixed")[1],
+  donotcalib_type = c("learn", "fixed")[1],
   nocalib.threshold = 0.1,
-  stable = TRUE,
+  path_correction = TRUE,
   ensemble = NULL,
-  pss = NULL,
+  pshrink_strength = NULL,
   nMCMC = 5000,
   nBurn = 5000,
   nThin = 1,
+  nChain = 1,
+  nCore = 1,
   adapt_delta_stan = 0.9,
-  refresh.stan = NULL,
+  refresh_stan = NULL,
   seed = 1,
   verbose = TRUE,
   saveoutput = FALSE,
   output_filename = NULL,
-  plot_it = TRUE
+  output_dir = NULL
 )
 }
 \arguments{
-\item{va_data}{A named list. Algorithm-specific unlabeled VA-only data.
+\item{va_data}{Named list. Algorithm-specific unlabeled VA data.
 
-For example, \code{list("algo1" = algo1_output, "algo2" = algo2_output, ...)}.
+It expects a named list, such as \code{list("algo1" = algo1_output, "algo2" = algo2_output, ...)}.
 
-Algorithm names (\code{"algo1"}, \code{"algo2"}, ...) can be "eava", "insilicova", or "interva".
+Misclassification matrix estimates in \code{CCVA_missmat} are only available for CCVA algorithms \href{https://www.jogh.org/documents/issue201601/jogh-06-010601.pdf}{EAVA}, \href{https://www.tandfonline.com/doi/abs/10.1080/01621459.2016.1152191}{InSilicoVA}, and InterVA (\doi{10.3402/gha.v5i0.19281}). For them the algorithm names in input data must be \code{"eava"}, \code{"insilicova"}, and \code{"interva"}. Otherwise, users must input misclassification matrices in \code{missmat} (see more details in \code{missmat}).
 
-Data (\code{algo1_output}, \code{algo2_output}, ...) can be specific causes (output from \code{codEAVA()} function in \code{EAVA} and \code{crossVA()} function in \code{openVA}), or broad causes (output from the \code{cause_map()} function in this package), or broad-cause-specific death counts (integer vector).
+VA data provided for each algorithm (\code{algo1_output}, \code{algo2_output}, ...) can be either
+\enumerate{
+\item outputs of CCVA algorithms (output from \code{codEAVA()} in \code{EAVA} for EAVA, and \code{codeVA()} and \code{prepCalibration()} in \code{openVA} for InSilicoVA and InterVA), or
+\item individual broad cause of deaths (output from \code{cause_map}), or
+\item a vector of cause-specific death counts.
+}
 
-Can be different for different algorithms.
+More generally, it can calibrate for any discrete classifier. In that case, the input must be one of these two types:
+\enumerate{
+\item A binary matrix arranged as individuals along rows and class labels as columns. For each individual (row), 1 occurs exactly once and it indicates the estimated class label. Other elements in the row are 0.
+\item A vector of label-specific counts. This indicates the estimated number of individuals for each label.
+}}
 
-Total number of deaths for different algorithms can be different.}
+\item{age_group}{Character.
 
-\item{age_group}{Character. Age-group of interest.
+When \code{missmat} is \code{NULL}, this indicates the age group for which the misclassification matrix estimates in \code{"CCVA_missmat"} should be applied (default).
 
-\code{"neonate"} or \code{"child"}.
+It can be either \code{"neonate"} for neonatal deaths occurring between 0-27 days after birth, and \code{"child"} for deaths among children occurring between 1-59 months.}
 
-\code{"neonate"} ages between 0-27 days, or \code{"child"} ages between 1-59 months.}
+\item{country}{Character.
 
-\item{country}{Character. The country \code{va_data} is from.
+When \code{missmat} is \code{NULL}, this indicates the country for which the misclassification matrix estimates in \code{"CCVA_missmat"} should be applied (default).
 
-Country-specific calibration is possible for "Bangladesh", "Ethiopia", "Kenya", "Mali", "Mozambique", "Sierra Leone", "South Africa".
+If input is "Bangladesh", "Ethiopia", "Kenya", "Mali", "Mozambique", "Sierra Leone", or "South Africa", then their corresponding misclassification matrix is applied. For any other country, the estimate for "other" is applied (see \code{"CCVA_missmat"} for more details).}
 
-Any other country is matched with "other".}
+\item{missmat_type}{Character. Indicates the type of misclassification matrix estimates provided in \code{missmat}.
 
-\item{calibmodel.type}{Character. How to utilize misclassification estimates.
+\code{"prior"} (default) Dirichlet priors for each row of the misclassification matrix.
 
-\code{"Mmatprior"} (default). Propagates uncertainty in the misclassification matrix estimates.
+\code{"fixed"} A fixed misclassification matrix.
 
-\code{"Mmatfixed"}. Uses fixed (default: posterior mean) misclassification matrix estimates.}
+\code{"samples"} Random samples of misclassification matrix.
 
-\item{Mmat.asDirich}{A named list. Similarly structured as \code{va_data}.
+Uncertainty in misclassification matrix estimates is only propagated for \code{"prior"} or \code{"samples"}.}
 
-Needed only if \code{calibmodel.type = "Mmatprior"} (propagates uncertainty).
+\item{studycause_map}{Named character vector. A mapping of observed causes (in \code{va_data}) to broad causes (for which misclassification estimates are available in \code{"CCVA_missmat"}).
 
-For example, \code{list("algo1" = Mmat.asDirich_algo1, "algo2" = Mmat.asDirich_algo2, ...)}.
+Required only when \code{missmat} is \code{NULL}, and causes observed in \code{va_data} are not a subset of broad causes in \code{"CCVA_missmat"} (see \code{"CCVA_missmat"} for list of causes).
 
-List of algorithm-specific Dirichlet prior on misclassification matrix to be used for calibration.
+For example, if causes observed in \code{va_data} for neonates are "cause1", "cause2", "cause3", and "cause4", \code{studycause_map} expects input as \code{c("cause1" = "pneumonia", "cause2" = "ipre", "cause3" = "other", "cause4" = "other")}.}
 
-Names and length must be identical to \code{va_data}.
+\item{missmat}{Named list. Similarly structured as \code{va_data}. For example, \code{list("algo1" = missmat_algo1, "algo2" = missmat_algo2, ...)}.
 
-If algorithm names (\code{"algo1"}, \code{"algo2"}, ...) are \code{"eava"}, \code{"insilicova"} or \code{"interva"}, and \code{Mmat.asDirich} is missing, it by default uses the CHAMPS-based estimates (Dirichlet approximation of posterior) stored in \code{Mmat_champs} in this package.
+For \code{missmat_type = "prior"}, \code{missmat_algo1}, \code{missmat_algo2}, ... are matrices with positive entries and arranged as CHAMPS cause \out{×} VA cause. Each row of the matrix is a vector of Dirichlet scale parameters. This the Dirichlet prior assumed on the corresponding row of the misclassification matrix. See stored estimates \code{CCVA_missmat$neonate$eava$asDirich$Mozambique} for example.
 
-See \code{Mmat_champs} for details.
+For \code{missmat_type = "fixed"}, \code{missmat_algo1}, \code{missmat_algo2}, ... are misclassification matrices arranged as CHAMPS cause \out{×} VA cause. See stored estimates \code{CCVA_missmat$neonate$eava$postmean$Mozambique} for example.
 
-If \code{Mmat.asDirich} is not missing, whatever provided is used.
+For \code{missmat_type = "samples"}, \code{missmat_algo1}, \code{missmat_algo2}, ... are arrays of misclassification matrix samples arranged as samples \out{×} CHAMPS cause \out{×} VA cause. \code{missmat_algo1[i,,]} is the i-th sample of misclassification matrix for \code{algo1}. See the samples stored in the \href{https://github.com/sandy-pramanik/CCVA-Misclassification-Matrices}{CCVA-Misclassification-Matrices} GitHub repository for example.
 
-If any algorithm name (\code{"algo1"}, \code{"algo2"}, ...) is different from \code{"eava"}, \code{"insilicova"} or \code{"interva"}, \code{Mmat.asDirich} must be provided.
+Names and length of \code{missmat} must be identical to \code{va_data}.
 
-\code{Mmat.asDirich_algo1} is a matrix of dimension CHAMPS ("gold standard") cause X VA cause.
+Users are not required to provide \code{missmat} for using the stored estimates in \code{"CCVA_missmat"}. They can simply input the required \code{age_group}, \code{country}, \code{missmat_type}, and \code{studycause_map} accordingly.
 
-\code{Dirichlet(Mmat.asDirich_algo1[i,])} is used as informative prior on classification rates for CHAMPS cause \code{i}.}
+\code{missmat} needs to be input when causes observed in \code{va_data} are not a subset of CHAMPS broad causes (in \code{"CCVA_missmat"}) and \code{studycause_map} is not provided.
 
-\item{Mmat.fixed}{A named list. Similarly structured as \code{va_data} or \code{Mmat.asDirich}.
+For a general purpose of calibrating categorical classifiers, CHAMPS and VA causes can be interpreted as true and estimated labels and users must input \code{missmat}.}
 
-Needed only if \code{calibmodel.type = "Mmatfixed"} (no uncertainty propagation).
+\item{donotcalib}{Named list. List of causes for each algorithm that users do not want to calibrate. The set of causes can differ across algorithms.
 
-For example, \code{list("algo1" = Mmat.fixed_algo1, "algo2" = Mmat.fixed_algo2, ...)}
+Default: \code{list("eava"="other", "insilicova"="other", "interva"="other")}. When using the stored estimates in \code{CCVA_missmat}, this implies that the cause-specific mortality fractions (CSMF) for CHAMPS broad cause \code{"other"} is not calibrated.
 
-List of algorithm-specific fixed misclassification matrix to be used for calibration.
+When causes observed in \code{va_data} are not a subset of CHAMPS broad causes and \code{studycause_map} is provided, all observed causes in \code{va_data} that match with the causes in \code{donotcalib} are not calibrated.
 
-Names and length must be identical to \code{va_data}.
+Set \code{list("eava"=NULL, "insilicova"=NULL, "interva"=NULL)} to calibrate all causes.
 
-If algorithm names (\code{"algo1"}, \code{"algo2"}, ...) are \code{"eava"}, \code{"insilicova"}, or \code{"interva"} and \code{Mmat.fixed} is missing, it by default uses the CHAMPS-based estimates (posterior mean) stored in \code{Mmat_champs} in this package.
+For a general purpose of calibrating categorical classifiers, causes can be interpreted as class labels and specified accordingly.}
 
-See \code{Mmat_champs} for details.
+\item{donotcalib_type}{Character. \code{"learn"} (default) or \code{"fixed"}.
 
-If \code{Mmat.fixed} is not missing, whatever provided is used.
+For \code{donotcalib_type="fixed"}, only the causes specified in \code{"donotcalib"} are not calibrated.
 
-If any algorithm name (\code{"algo1"}, \code{"algo2"}, ...) is different from \code{"eava"}, \code{"insilicova"} or \code{"interva"}, \code{Mmat.fixed} must be provided. \code{Mmat.fixed_algo1} is a matrix of dimension CHAMPS cause X VA cause. \code{Mmat.fixed_algo1[i,]} are the classification rates for CHAMPS cause \code{i}.}
+For \code{donotcalib_type="learn"}, it learns additional causes from misclassification matrix in \code{"missmat"} that cannot be calibrated.
 
-\item{donotcalib}{A named list. Similarly structured as \code{va_data}, \code{Mmat.asDirich}, or \code{Mmat.fixed}.
+When misclassification rates for a VA cause do not change across CHAMPS causes, the calibration equation becomes underdetermined (see the footnote on pg. 1227 in \href{https://projecteuclid.org/journals/annals-of-applied-statistics/volume-19/issue-2/Modeling-structure-and-country-specific-heterogeneity-in-misclassification-matrices-of/10.1214/24-AOAS2006.full}{Pramanik et al. (2025)}). When \code{donotcalib_type="learn"}, it screens VA causes that do not vary beyond \code{nocalib.threshold}. These causes are added to the \code{donotcalib} list.
 
-List of broad causes for each CCVA algorithm that we do not want to calibrate
+For a general purpose of calibrating categorical classifiers, causes can be interpreted as class labels and specified accordingly.}
 
-Default: \code{list("eava"="other", "insilicova"="other", "interva"="other")}. That is, \code{"other"} cause is not calibrated.
+\item{nocalib.threshold}{Numeric in \code{(0,1)}.
 
-For neonates, the broad causes are \code{"congenital_malformation"}, \code{"pneumonia"}, \code{"sepsis_meningitis_inf"}, \code{"ipre"}, \code{"other"}, or \code{"prematurity"}.
+The threshold used to screen VA causes when \code{donotcalib_type="learn"}.
 
-For children, the broad causes are \code{"malaria"}, \code{"pneumonia"}, \code{"diarrhea"}, \code{"severe_malnutrition"}, \code{"hiv"}, \code{"injury"}, \code{"other"}, \code{"other_infections"}, \code{"nn_causes"} (neonatal causes).
+Default: 0.1.}
 
-Set \code{list("eava" = NULL, "insilicova" = NULL, "interva" = NULL)} if you want to calibrate all causes.}
+\item{path_correction}{Logical. Setting \code{TRUE} shrinks misclassification matrix towards the identity matrix to improve stability in VA-Calibration.
 
-\item{donot.calib_type}{Character. \code{"fixed"} or \code{"learn"} (default).
+Default is \code{TRUE}.}
 
-For \code{"fixed"}, only broad causes that are provided in \code{"donotcalib"} are not calibrated.
+\item{ensemble}{Logical. Whether to perform ensemble calibration when outputs from multiple algorithms are provided.
 
-For \code{"learn"}, it learns from \code{"Mmat.fixed"} or \code{"Mmat.asDirich"} if any other causes cannot be calibrated.
+Default is \code{TRUE}.}
 
-For \code{"learn"}, it identifies VA causes for which the misclassification rates do not vary across CHAMPS causes.
+\item{pshrink_strength}{Positive numeric. Degree of shrinkage of calibrated CSMF estimates towards its uncalibrated estimates. This is the parameter \code{eta} in the prior of calibrated CSMF \code{p} (see pg. 1226 in \href{https://projecteuclid.org/journals/annals-of-applied-statistics/volume-19/issue-2/Modeling-structure-and-country-specific-heterogeneity-in-misclassification-matrices-of/10.1214/24-AOAS2006.full}{Pramanik et al. (2025)}).
 
-In that case, the calibration equation becomes ill-conditioned (see the footnote below Section 3.8 in Pramanik et al. (2025)). Currently, we address this by not calibrating VA causes for which the misclassification rates are similar along the rows (CHAMPS causes). VA causes (Columns) for which the rates along the rows (CHAMPS causes) do not vary more that \code{"nocalib.threshold"} are not calibrated. \code{"donotcalib"} is accordingly updated for each CCVA algorithm.}
+Only used when \code{path_correction=FALSE}. \code{pshrink_strength} is set to 0 when \code{path_correction=TRUE}.
 
-\item{nocalib.threshold}{Numeric between 0 and 1. The value used for screening VA causes that cannot be calibrated when \code{donot.calib_type = "learn"}. Default: 0.1.}
-
-\item{stable}{Logical. \code{TRUE} (default) or \code{FALSE}. Setting \code{TRUE} improves stability in calibration.}
-
-\item{ensemble}{Logical. \code{TRUE} (default) or \code{FALSE}.
-
-Whether to perform ensemble calibration when outputs from multiple algorithms are provided.}
-
-\item{pss}{Positive numeric. Degree of shrinkage of calibrated cause-specific mortality fraction (CSMF) estimate towards uncalibrated estimates.
-
-Always 0 when \code{stable=TRUE}. Defaults to 4 when \code{stable=FALSE}.}
+Defaults to 4 when \code{path_correction=FALSE}.}
 
 \item{nMCMC}{Positive integer. Total number of posterior samples to perform inference on.
 
-Total number of iterations are \code{nBurn + nMCMC*nThin}.
-
-Default 5000.}
+Total number of iterations are \code{nBurn + nMCMC*nThin}. Default 5000.}
 
 \item{nBurn}{Positive integer. Total burn-in in posterior sampling.
 
-Total number of iterations are \code{nBurn + nMCMC*nThin}.
-
-Default 5000.}
+Total number of iterations are \code{nBurn + nMCMC*nThin}. Default 5000.}
 
 \item{nThin}{Positive integer. Number of thinning in posterior sampling.
 
-Total number of iterations are \code{nBurn + nMCMC*nThin}.
+Total number of iterations are \code{nBurn + nMCMC*nThin}. Default 1.}
 
-Default 1.}
+\item{nChain}{Positive integer. Number of chains for Stan sampling. Default 1.}
 
-\item{adapt_delta_stan}{Positive numeric between 0 and 1. \code{"adapt_delta"} parameter in \code{rstan}.
+\item{nCore}{Positive integer. Number of cores to run multiple chains in parallel for Stan sampling. Default 1.}
 
-Influences the behavior of the No-U-Turn Sampler (NUTS), the primary MCMC sampling algorithm in Stan.
+\item{adapt_delta_stan}{Numeric in \code{(0,1)}. \code{adapt_delta} parameter in \code{rstan}.
+
+Influences the behavior of the No-U-Turn Sampler (NUTS) in Stan.
 
 Default 0.9.}
 
-\item{refresh.stan}{Positive integer. Report progress at every \code{refresh.stan}-th iteration.
+\item{refresh_stan}{Positive integer. Print every \code{refresh_stan}\% progress.
 
-Default \code{(nBurn + nMCMC*nThin)/10}, that is at every 10\% progress.}
+Default 20.}
 
-\item{seed}{Numeric. \code{"seed"} parameter in rstan.
+\item{seed}{Numeric. \code{seed} parameter in rstan. Default 1.}
 
-Default 1.}
+\item{verbose}{Logical. Whether to report progress (\code{TRUE}) or not (\code{FALSE}).
 
-\item{verbose}{Logical. Reports progress or not.
+Default \code{TRUE}.}
 
-\code{TRUE} (default) or \code{FALSE}.}
+\item{saveoutput}{Logical. Save output (\code{TRUE}) or not (\code{FALSE}).
 
-\item{saveoutput}{Logical. Save output or not.
-
-\code{TRUE} (default) or \code{FALSE}.}
+Default \code{TRUE}.}
 
 \item{output_filename}{Character. Output name to save as.
 
-Default \code{paste0("calibratedva_", calibmodel.type)}. That is \code{"calibratedva_Mmatprior"} or \code{"calibratedva_Mmatfixed"}.}
+Default \code{vacalibration_out}.}
 
-\item{plot_it}{Logical. Whether to return comparison plot for summary.
+\item{output_dir}{Output directory or file path to save at.
 
-\code{TRUE} (default) or \code{FALSE}.}
+Default \code{getwd()}, the working directory.}
 }
 \value{
-A named list:
-\describe{
-\item{input}{A named list of input data}
-\item{p_uncalib}{Uncalibrated cause-specific mortality fractions (CSMF) estimates as observed in the data}
-\item{p_calib}{Posterior samples of calibrated CSMF estimates}
-\item{pcalib_postsumm}{Posterior summaries (mean and 95\% credible interval) of calibrated CSMF estimates}
-\item{va_deaths_uncalib}{Uncalibrated cause-specific death counts as observed in the data}
-\item{va_deaths_calib_algo}{Algorithm-specific calibrated cause-specific death counts}
-\item{va_deaths_calib_ensemble}{Ensemble calibrated cause-specific death counts}
-\item{donotcalib}{A logical indicator of causes that are not calibrated for each algorithm}
-\item{causes_notcalibrated}{Causes that are not calibrated for each algorithm}
+A list with components:
+\itemize{
+\item \code{calib_MCMCout} — Output from Stan fits.
+\item \code{p_uncalib} — Uncalibrated estimates of CSMF. It is a matrix arranged as algorithm \out{×} VA causes (estimated labels).
+\item \code{p_calib} — Posterior samples of calibrated CSMF. It is an array arranged as algorithm \out{×} samples \out{×} VA causes (or estimated labels).
+\item \code{pcalib_postsumm} — Posterior summaries (mean and 95\% credible interval) of calibrated CSMF. It is an array arranged as algorithm \out{×} summary measures \out{×} VA causes (or estimated labels).
+\item \code{va_deaths_uncalib} — Uncalibrated cause-specific death counts. It is a matrix arranged as algorithm \out{×} VA causes (or estimated labels).
+\item \code{va_deaths_calib_algo} — Calibrated cause-specific death counts from algorithm-specific calibration. It is a matrix arranged as algorithm \out{×} VA causes (or estimated labels).
+\item \code{va_deaths_calib_ensemble} — Calibrated cause-specific death counts from ensemble calibration. It is a matrix arranged as algorithm \out{×} VA causes (or estimated labels).
+\item \code{Mmat_input} — \code{"missmat"} as provided in the input. It is an array arranged as algorithm \out{×} CHAMPS cause (or true labels) \out{×} VA causes (or estimated labels).
+\item \code{Mmat_study} — Modified \code{Mmat_input} if \code{studycause_map} is provided. It is an array arranged in the same way as \code{Mmat_input}.
+\item \code{Mmat_tomodel} — Modified \code{Mmat_study} if \code{path_correction} is \code{TRUE}. This is used for calibration. It is an array arranged in the same way as \code{Mmat_input} and \code{Mmat_study}.
+\item \code{donotcalib_study} — This indicates causes that are not calibrated for each algorithm, as specified in the input \code{donotcalib}. It is a logical matrix arranged as algorithm \out{×} VA causes (or estimated labels).
+\item \code{donotcalib_tomodel} — This indicates causes that are not calibrated in each calibration. This is a modified \code{donotcalib_study} if \code{donotcalib_type} is provided and \code{ensemble=TRUE}. It is a logical matrix arranged as algorithm \out{×} VA causes (or estimated labels).
+\item \code{calibrated} — \code{TRUE} or \code{FALSE} indicating whether Stan sampling was performed for calibration.
+\item \code{lambda_calibpath} — When \code{path_correction=TRUE}, this indicates the degree of shrinkage of CSMF for each algorithm towards uncalibrated estimates. This is a vector of numerics in \code{[0,1]} showing degrees of shrinkage for each algorithm.
+\item \code{K} — Number of algorithms.
+\item \code{nCause} — Number of causes.
+\item \code{causes} — Name of causes.
+\item \code{input} — List of inputs.
 }
 }
 \description{
-VA-calibration function
+This is the main function in the package. It calibrates population-level cause-specific mortality fractions (CSMFs) that are derived using computer-coded verbal autopsy (CCVA) algorithms. For VA-Calibration, the function utilizes the inventory of misclassification matrix estimates \link{CCVA_missmat}.
+The outputs from \href{https://CRAN.R-project.org/package=EAVA}{EAVA} and \href{https://CRAN.R-project.org/package=openVA}{openVA} for InSilicoVA and InterVA can be input directly (see below). This seamlessly supports VA-Calibration for \href{https://www.jogh.org/documents/issue201601/jogh-06-010601.pdf}{EAVA}, \href{https://www.tandfonline.com/doi/abs/10.1080/01621459.2016.1152191}{InSilicoVA}, and InterVA (\doi{10.3402/gha.v5i0.19281}).
+For other CCVA algorithms, the input expects either an individual by cause matrix, or cause-specific death count vector (see below).
+When broad-cause-specific death counts are input and they do not match the broad causes in the stored misclassification estimates, then either \code{studycause_map} or the misclassification matrices (fixed or as row-specific Dirichlet priors) need to be provided.
+More generally, this allows us to calibrate population-level prevalence derived from single-class predictions of discrete classifiers. For this, users need to provide fixed or uncertainty-quantified misclassification matrices.
 }
 \examples{
 
 \donttest{
+######### COMSA-Mozambique VA-COD data #########
+data(comsamoz_CCVAoutput)
 
-######### VA input as specific causes #########
-# output from codEAVA() function in the EAVA package and crossVA() function in openVA package
-
-# COMSA-Mozambique: Example (Publicly Available Version)
-# Individual-Level Specific (High-Resolution) Cause of Death Data
-data(comsamoz_public_openVAout)
-head(comsamoz_public_openVAout$data)  # head of the data
-comsamoz_public_openVAout$data[1,]  # ID and specific cause of death for individual 1
-
-# VA-calibration for the "neonate" age group and InSilicoVA algorithm
-calib_out_specific = vacalibration(va_data =
-                                            setNames(list(comsamoz_public_openVAout$data),
-                                                     list(comsamoz_public_openVAout$va_algo)),
-                                     age_group = comsamoz_public_openVAout$age_group,
-                                     country = "Mozambique")
-
-### comparing uncalibrated CSMF estimates and posterior summary of calibrated CSMF estimates
-calib_out_specific$p_uncalib # uncalibrated
-calib_out_specific$pcalib_postsumm["insilicova",,]
-
-######### VA input as broad causes (output from cause_map()) #########
-
-# COMSA-Mozambique: Example (Publicly Available Version)
-# Individual-Level Broad Cause of Death Data
-data(comsamoz_public_broad)
-head(comsamoz_public_broad$data)
-comsamoz_public_broad$data[1,]  # binary vector indicating cause of death for individual 1
-
-# VA-calibration for the "neonate" age group and InSilicoVA algorithm
-calib_out_broad = vacalibration(va_data = setNames(list(comsamoz_public_broad$data),
-                                                     list(comsamoz_public_broad$va_algo)),
-                                  age_group = comsamoz_public_broad$age_group,
-                                  country = "Mozambique")
-
-### comparing uncalibrated CSMF estimates and posterior summary of calibrated CSMF estimates
-calib_out_broad$p_uncalib # uncalibrated
-calib_out_broad$pcalib_postsumm["insilicova",,]
-
-######### VA input as national death counts for different broad causes #########
-calib_out_asdeathcount = vacalibration(va_data =
-                                           setNames(list(colSums(comsamoz_public_broad$data)),
-                                                    list(comsamoz_public_broad$va_algo)),
-                                         age_group = comsamoz_public_broad$age_group,
-                                         country = "Mozambique")
-
-### comparing uncalibrated CSMF estimates and posterior summary of calibrated CSMF estimates
-calib_out_asdeathcount$p_uncalib # uncalibrated
-calib_out_asdeathcount$pcalib_postsumm["insilicova",,]
+# neonatal deaths
+comsamoz_CCVAoutput$neonate$eava  # output from running EAVA
+comsamoz_CCVAoutput$neonate$insilicova  # output from running InSilicoVA
+comsamoz_CCVAoutput$neonate$interva  # output from running InterVA
 
 
-######### Example of data based on EAVA and InSilicoVA for neonates in Mozambique #########
-## example VA national death count data from EAVA and InSilicoVA
-va_data_example = list("eava" = c("congenital_malformation" = 40, "pneumonia" = 175,
-                                  "sepsis_meningitis_inf" = 265, "ipre" = 220,
-                                  "other" = 30, "prematurity" = 170),
-                       "insilicova" = c("congenital_malformation" = 5, "pneumonia" = 145,
-                                        "sepsis_meningitis_inf" = 370, "ipre" = 330,
-                                        "other" = 60, "prematurity" = 290))
 
-## algorithm-specific and ensemble calibration of EAVA and InSilicoVA
-calib_out_ensemble = vacalibration(va_data = va_data_example,
-                                   age_group = "neonate", country = "Mozambique")
+######### Algorithm-Specific Calibration #########
 
-### comparing uncalibrated CSMF estimates and posterior summary of calibrated CSMF estimates
-calib_out_ensemble$p_uncalib # uncalibrated
-calib_out_ensemble$pcalib_postsumm["eava",,] # EAVA-specific calibration
-calib_out_ensemble$pcalib_postsumm["insilicova",,] # InSilicoVA-specific calibration
-calib_out_ensemble$pcalib_postsumm["ensemble",,] # Ensemble calibration
+# EAVA
+vacalib_out_eava = vacalibration(va_data = comsamoz_CCVAoutput$neonate[1],
+                                 age_group = "neonate", country = "Mozambique",
+                                 saveoutput = FALSE)
 
+## CSMF
+vacalib_out_eava$p_uncalib   # uncalibrated
+vacalib_out_eava$p_calib   # calibrated
+vacalib_out_eava$pcalib_postsumm   # summary of calibrated estimates
+
+## death counts
+vacalib_out_eava$va_deaths_uncalib   # uncalibrated
+vacalib_out_eava$va_deaths_calib_algo   # calibrated
+
+
+# InSilicoVA
+vacalib_out_insilicova = vacalibration(va_data = comsamoz_CCVAoutput$neonate[2],
+                                       age_group = "neonate", country = "Mozambique",
+                                       saveoutput = FALSE)
+
+## CSMF
+vacalib_out_insilicova$p_uncalib   # uncalibrated
+vacalib_out_insilicova$p_calib   # calibrated
+vacalib_out_insilicova$pcalib_postsumm   # summary of calibrated estimates
+
+## death counts
+vacalib_out_insilicova$va_deaths_uncalib   # uncalibrated
+vacalib_out_insilicova$va_deaths_calib_algo   # calibrated
+
+
+# InterVA
+vacalib_out_interva = vacalibration(va_data = comsamoz_CCVAoutput$neonate[3],
+                                    age_group = "neonate", country = "Mozambique",
+                                    saveoutput = FALSE)
+
+## CSMF
+vacalib_out_interva$p_uncalib   # uncalibrated
+vacalib_out_interva$p_calib   # calibrated
+vacalib_out_interva$pcalib_postsumm   # summary of calibrated estimates
+
+## death counts
+vacalib_out_interva$va_deaths_uncalib   # uncalibrated
+vacalib_out_interva$va_deaths_calib_algo   # calibrated
+
+
+
+######### Ensemble Calibration #########
+vacalib_out_ensemble = vacalibration(va_data = comsamoz_CCVAoutput$neonate,
+                                     age_group = "neonate", country = "Mozambique",
+                                     saveoutput = FALSE)
+
+## CSMF
+vacalib_out_ensemble$p_uncalib   # uncalibrated
+vacalib_out_ensemble$p_calib   # calibrated
+vacalib_out_ensemble$pcalib_postsumm   # summary of calibrated estimates
+
+## death counts
+vacalib_out_ensemble$va_deaths_uncalib   # uncalibrated
+vacalib_out_ensemble$va_deaths_calib_algo   # algorithm-specific calibrated death counts
+vacalib_out_ensemble$va_deaths_calib_ensemble   # ensemble calibrated death counts
 }
 
+}
+\references{
+Pramanik, S, et al. (2026)
+Country-Specific Estimates of Misclassification Rates of Computer-Coded Verbal Autopsy Algorithms
+BMJ Global Health
+\doi{10.1136/bmjgh-2025-021747}
+
+Pramanik, S, et al. (2025)
+Modeling structure and country-specific heterogeneity in misclassification matrices of verbal autopsy-based cause of death classifiers
+Annals of Applied Statistics
+\href{https://projecteuclid.org/journals/annals-of-applied-statistics/volume-19/issue-2/Modeling-structure-and-country-specific-heterogeneity-in-misclassification-matrices-of/10.1214/24-AOAS2006.short}{Link}
+
+Fiksel, J., et al. (2022)
+Generalized Bayes Quantification Learning under Dataset Shift
+Journal of the American Statistical Association
+\href{https://www.tandfonline.com/doi/full/10.1080/01621459.2021.1909599}{Link}
+
+Datta, A, et al. (2021)
+Regularized Bayesian transfer learning for population-level etiological distributions.
+Biostatistics
+\doi{10.1093/biostatistics/kxaa001}
 }

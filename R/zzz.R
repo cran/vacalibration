@@ -6,12 +6,29 @@
 if (getRversion() >= "2.15.1") {
   utils::globalVariables(c(
     "cause",
+    "cause1",
     "Var2",
     "Var3",
     "value",
     "calib_type",
     "llim",
     "ulim",
-    "Mmat_champs"
+    "CCVA_missmat",
+    "stanfitq_k",
+    "va_data_tomodel",
+    "calibrated_ens",
+    "title_Mmat_tomodel",
+    "subtitle_Mmat_tomodel",
+    "age_group",
+    "causes",
+    "K",
+    "studycause_map",
+    "path_correction",
+    "ensemble"
   ))
+}
+
+.onLoad <- function(libname, pkgname) {
+  rstan::rstan_options(auto_write = TRUE)
+  options(mc.cores = parallel::detectCores())
 }

@@ -1,0 +1,16 @@
+
+/* Make main content wider */
+.main-container {
+  max-width: 2500px;
+}
+
+body {
+  font-size: 15px;  /* default is ~14px */
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 800;    /* heavier than default 600 */
+  font-size: 18px;  /* default is ~14px */
+  line-height: 1.6;
+}

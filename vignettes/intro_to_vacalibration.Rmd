@@ -1,45 +1,25 @@
 ---
-title: "Vignette for 'vacalibration'"
-output: 
-  rmarkdown::html_vignette:
+title: "VA-Calibration"
+author: "Sandipan Pramanik, Emily Wilson, Jacob Fiksel, Brian Gilbert, Abhirup Datta"
+date: "`r format(Sys.Date())`"
+output:
+  rmarkdown::html_document:
     toc: true
+    toc_float: true
+    toc_depth: 2
+    theme: cosmo
+    css: custom.css
 vignette: >
-  %\VignetteIndexEntry{Vignette for 'vacalibration'}
+  %\VignetteIndexEntry{Intro to vacalibration}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
 <a id="top"></a>
 
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-```
-
 ```{r, results='asis', echo=FALSE}
 cat('
 <style>
-  h1 {
-    font-size: 30px;
-    margin-top: 50px;  /* increase spacing above headings */
-  }
-  h2 {
-    font-size: 22px;
-    margin-top: 22px;  /* increase spacing above headings */
-  }
-  h3 {
-    font-size: 18px;
-    margin-top: 18px;  /* increase spacing above headings */
-  }
-  body {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 20px;
-    font-size: 110%
-  }
   pre {
     position: relative;
   }
@@ -58,21 +38,6 @@ cat('
   }
   .copy-btn:hover {
     opacity: 1;
-  }
-  #TOC {
-    font-size: 16px; /* Adjust as needed for the overall TOC container */
-  }
-  #TOC ul li {
-    font-size: 14px; /* Adjust as needed for individual list items */
-  }
-  #TOC ul li a {
-    font-size: 20px; /* Adjust as needed for the links within the list items */
-  }
-  .tocify {
-    width: 1000px !important; /* adjust width as needed */
-  }
-  #vignette {
-    margin-left: 10px !important; /* match or slightly more than .tocify width */
   }
 </style>
 
@@ -101,264 +66,208 @@ document.addEventListener("DOMContentLoaded", function() {
 ')
 ```
 
-# Contents of the Package
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
 
-- <strong><u>Data</u></strong>:
+# Key Components of the Package
 
-  - `Mmat_champs`: Uncertainty-quantified <strong>misclassification matrix estimates</strong> of computer-coded verbal autopsy (CCVA) algorithms based on the [CHAMPS](https://champshealth.org/) data (Will be updated periodically)
+-   <strong><u>CCVA Misclassification Matrices</u></strong>: Stored as `CCVA_missmat`, this is the inventory of uncertainty-quantified misclassification matrices for three computer-coded verbal autopsy (CCVA) algorithms: expert algorithm or [EAVA](https://pubmed.ncbi.nlm.nih.gov/25969734/), [InSilicoVA](https://doi.org/10.1080/01621459.2016.1152191), and [InterVA](https://doi.org/10.3402/gha.v5i0.19281). The matrices are derived using the modeling framework of [Pramanik et al. (2025)](https://doi.org/10.1214/24-AOAS2006) applied to the data collected in the Child Health and Mortality Prevention Surveillance ([CHAMPS](https://champshealth.org/)) project (see [Pramanik et al. (2026)](https://doi.org/10.1136/bmjgh-2025-021747) for details). Due to file size limits, the posterior samples are hosted on the [GitHub repository](https://github.com/sandy-pramanik/CCVA-Misclassification-Matrices), with the .rda file available under the [release](https://github.com/sandy-pramanik/CCVA-Misclassification-Matrices/releases/tag/20241004). Please refer to this package and the GitHub repository for future updates.
 
-  - <u>Example Data</u>: Individual-level cause of death data in [COMSA-Mozambique](https://comsamozambique.org/) ([Public Version](https://comsamozambique.org/data-access))
+-   <strong><u>Example VA-only Data from COMSA-Mozambique</u></strong>: Stored as `comsamoz_CCVAoutput`, this object contains CCVA analyses outputs of [publicly available](https://comsamozambique.org/data-access) verbal autopsy (VA) survey data in [COMSA-Mozambique](https://comsamozambique.org/) for children under age five. It includes outputs from EAVA (using the [EAVA](https://CRAN.R-project.org/package=EAVA) package), and InSilicoVA and InterVA (using the [openVA](https://CRAN.R-project.org/package=openVA) package). The analyses cover two age groups: neonates (0-27 days) and children (1-59 months).
 
-    - `comsamoz_public_openVAout`: *Specific* (High-resolution) causes
+-   <strong>`vacalibration()`</strong>: This is the main function for performing calibration. For EAVA, InSilicoVA, and InterVA, it directly takes outputs from [EAVA](https://CRAN.R-project.org/package=EAVA) and [openVA](https://CRAN.R-project.org/package=openVA), and produces calibrated estimates of cause-specific mortality fractions (CSMFs). More generally, this calibrates population-level prevalence derived from single-class predictions of discrete classifiers. For this, users need to provide fixed or uncertainty-quantified misclassification matrices.
 
-    - `comsamoz_public_broad`: *Broad* (Low-resolution) causes
+-   <strong>`plot_vacalib()`</strong>: It presents a figure including the misclassification matrix used for calibration, and comparing uncalibrated and calibrated estimates of CSMFs.
 
-- <strong><u>Functions</u></strong>:
+# Getting Started
 
-  - `vacalibration()`: **Main function** for VA-Calibration
+We start by installing and loading the `vacalibration` package in `R`. 
 
-      - <strong><u>Also applicable to</u></strong> to calibrating predictions from any discrete classifier (or ensemble of classifiers)
-
-  - Other functions:
-
-    - `cause_map()`: Maps specific causes to broad causes
-
-    - `modular.vacalib()`: Implements the modular VA-calibration (see Section 3.8 in [Pramanik et al. (2025)](https://projecteuclid.org/journals/annals-of-applied-statistics/volume-19/issue-2/Modeling-structure-and-country-specific-heterogeneity-in-misclassification-matrices-of/10.1214/24-AOAS2006.short))
-
-
-# Install and Load
-
+Install from CRAN:
 ```{r, eval=F}
-install.packages("vacalibration") # install
+install.packages("vacalibration")
 library(vacalibration) # load
 ```
 
-
-# Stored Data
-
-
-## COMSA-Mozambique
-
-For the purpose of illustration, `comsamoz_public_openVAout` and `comsamoz_public_broad` contain publicly available (deidentified) individual-level cause of death (COD) data for neonates aged 0–27 days from the Countrywide Mortality Surveillance for Action project in Mozambique (COMSA-Mozambique). The cause in this example data are obtained using the InSilicoVA algorithm.
-
-
-### *Specific* Cause of Death
-
-These are assigned *specific* (high-resolution) COD assigned by InSilicoVA algorithm to 2016 WHO Verbal Autopsy Questionnaire data for neonate in COMSA-Mozambique. This is obtained using the `crossVA()` function in the `openVA` package.
-
+Install from GitHub:
 ```{r, eval=F}
-data(comsamoz_public_openVAout)  # load data in R environment
-
-class(comsamoz_public_openVAout)  # list
-names(comsamoz_public_openVAout)  # different components
-
-comsamoz_public_openVAout$age_group  # age group
-comsamoz_public_openVAout$va_algo  # algorithm
-head(comsamoz_public_openVAout$data)  # head of the specific COD data
-# for these 6 individuals, the causes of deaths are "Other and unspecified neonatal CoD",
-# "Birth asphyxia", "Neonatal sepsis", "Birth asphyxia", "Birth asphyxia", "Neonatal sepsis"
+# install "devtools" R package
+devtools::install_github("sandy-pramanik/vacalibration")
+library(vacalibration) # load
 ```
 
 [Back to top](#top)
 
+# Example: COMSA-Mozambique Data
 
-### *Broad* Cause of Death
-
-These are assigned *broad* (low-resolution) COD for the same deaths in the above specific COD data `comsamoz_public_openVAout`. This is obtained using the `cause_map()` function in this package. `comsamoz_public_openVAout` and `comsamoz_public_broad` are of the same format (a list with components `"data"`, `"age_group"`, `"va_algo"`, and `"version"`).
-
-Broad causes are as below for each age group:
-
-* `neonate`:
-  * `"congenital_malformation"`
-  * `"pneumonia"`
-  * `"sepsis_meningitis_inf"` (sepsis/meningitis/infections)
-  * `"ipre"` (intrapartum-related events)
-  * `"other"`
-  * `"prematurity"`.
-* `child`:
-  * `"malaria"`
-  * `"pneumonia"`
-  * `"diarrhea"`,
-  * `"severe_malnutrition"`,
-  * `"hiv"`,
-  * `"injury"`,
-  * `"other"`,
-  * `"other_infections"`, and
-  * `"nn_causes"` (neonatal causes; consists of IPRE, congenital malformation, and prematurity).
+For illustration, we use the VA-only data included in this package. Stored as `comsamoz_CCVAoutput`, it contains outputs from EAVA, InSilicoVA, and InterVA of the analysis of the [publicly available](https://comsamozambique.org/data-access) VA-only data for children under age 5 in [COMSA-Mozambique](https://comsamozambique.org/). It can be loaded with:
 
 ```{r, eval=F}
-data(comsamoz_public_broad)  # load data in R environment
-head(comsamoz_public_broad$data)  # head of the stored broad COD data
-# for these 6 individuals, the causes of deaths are "other", "ipre", "sepsis_meningitis_inf",
-# "ipre", "ipre", "sepsis_meningitis_inf"
+data("comsamoz_CCVAoutput")
+
+comsamoz_CCVAoutput$neonate$eava  # output from EAVA for neonates
+comsamoz_CCVAoutput$neonate$insilicova  # output from InSilicoVA for neonates
+comsamoz_CCVAoutput$neonate  # list of outputs for neonates from EAVA, InSilicoVA, and InterVA
 ```
 
-[Back to top](#top)
-
-
-## Misclassification Matrix Estimates Based on CHAMPS
-
-This stores estimates of misclassification matrices for different computer-coded verbal autopsy (CCVA) algorithms, age groups, and countries based on the COD data from the CHAMPS project.
-
-<u>**CHAMPS Data:**</u> The Child Health and Mortality Prevention Surveillance ([CHAMPS](https://champshealth.org/)) Network gathers premortem clinical and laboratory data, along with postmortem verbal autopsy (VA) and minimally invasive tissue sampling (MITS), from sites in Bangladesh, Ethiopia, Kenya, Mali, Mozambique, Sierra Leone, and South Africa. A panel of physicians and scientists uses the diagnostic test results and clinical records to ascertain a causal chain. This creates a limited paired COD data from two diagnoses: a *gold standard* (CHAMPS cause from here on) and one based on VA.
-
-<u>**Estimates:**</u> We model this data using the efficient country-specific misclassification matrix modeling framework proposed in [Pramanik et al. (2025)](https://projecteuclid.org/journals/annals-of-applied-statistics/volume-19/issue-2/Modeling-structure-and-country-specific-heterogeneity-in-misclassification-matrices-of/10.1214/24-AOAS2006.short). `Mmat_champs` stores estimates from this modeling for
-
-- <u>two age groups:</u> `"neonate"` for 0-27 days, `"child"` for 1-59 months.
-
-- <u>three CCVA algorithms:</u> `"eava"` for EAVA, `"insilicova"` for InSilicoVA, and `"interva"` for InterVA.
-
-- <u>eight countries:</u> `"Bangladesh"`, `"Ethiopia"`, `"Kenya"`, `"Mali"`, `"Mozambique"`, `"Sierra Leone"`, and `"South Africa"`. It also has an estimate for `"other"` for all countries outside CHAMPS.
-
-`Mmat_champs` is a nested list. For example, `Mmat_champs$neonate$eava$postsumm$Mozambique` contains posterior summaries of misclassification estimates for neonates based on EAVA algorithm in Mozambique. Similarly, `Mmat_champs$neonate$eava$postmean$Mozambique` and `Mmat_champs$neonate$eava$asDirich$Mozambique` contain posterior mean and Diichlet approximation of the posterior.
-
-For any age group, algorithm, and country, the posterior estimates are stored in three formats:
-
-- `"postsumm"`: Array of `posterior summary` X `CHAMPS broad cause` X `VA broad cause`.
-
-  - Posterior summaries are `mean` (posterior mean), `min` (minimum), `2.5%` (2.5% percentile), `25%` (25% percentile), `50%` (50% percentile), `75%` (75% percentile), `97.5%` (97.5% percentile), and `max` (maximum).
-  
-  - For example, `Mmat_champs$neonate$eava$postsumm$Mozambique[,"pneumonia",]` are posterior summaries for CHAMPS cause `"pneumonia"`. Rows are posterior summaries. Columns are VA predicted broad causes.
-
-- `"postmean"`: Matrix of `CHAMPS broad cause` X `VA broad cause`. Contains posterior mean of misclassification matrices.
-  
-  - For example, `Mmat_champs$neonate$eava$postmean$Mozambique["pneumonia",]` are posterior means for CHAMPS cause `"pneumonia"`.
-
-- `"asDirich"`: Matrix of `CHAMPS broad cause` X `VA broad cause`. Stores concentration (or scale) parameters of Dirichlet distribution that best approximates the posterior distibution of misclassification matrices based on the CHAMPS data.
-  
-  - For example, Dirichlet distribution with parameters `Mmat_champs$neonate$eava$asDirich$Mozambique["pneumonia",]` best approximate the misclassification posterior for CHAMPS cause `"pneumonia"`.
+Outputs for children can be similarly accessed as `comsamoz_CCVAoutput$child`.
 
 [Back to top](#top)
 
+# CCVA Misclassification Matrices {#sec-CCVA_missmat}
 
-# Implementing VA-calibration
+This is the inventory of uncertainty-quantified misclassification matrices for the CCVA algorithms EAVA, InSilicoVA, and InterVA. When applying these algorithms, the matrices enable VA-Calibration to obtain calibrated CSMF estimates. The matrices are estimated using the misclassification-matrix modeling framework of [Pramanik et al. (2025)](https://doi.org/10.1214/24-AOAS2006) and paired CHAMPS–VA cause-of-death data from the Child Health and Mortality Prevention Surveillance ([CHAMPS](https://champshealth.org/)) project (see [Pramanik et al. (2026)](https://doi.org/10.1136/bmjgh-2025-021747) for details). It can be loaded with:
 
-`vacalibration()` is the main function for implementing VA-calibration, where VA-only data can be input either as specific cause (e.g., `comsamoz_public_openVAout`), or broad cause (e.g., `comsamoz_public_broad`), or broad-cause-specific death counts.
+```{r, eval=F}
+data("CCVA_missmat")
+```
 
+For EAVA among neonates in Mozambique, you can access: the average misclassification matrix, the uncertainty-quantified misclassification matrix as a Dirichlet prior, and distributional summaries, as follows:
 
-## Single Algorithm
+```{r, eval=F}
+CCVA_missmat$neonate$eava$postmean$Mozambique  # average
+CCVA_missmat$neonate$eava$asDirich$Mozambique  # Dirichlet approximation
+CCVA_missmat$neonate$eava$postsumm$Mozambique  # summary of distribution
+```
 
+Matrices for other algorithms, countries, and child age groups can be accessed in the same way. Currently, `CCVA_missmat` provides misclassification matrices for three CCVA algorithms (`EAVA`, `InSilicoVA`, and `InterVA`) and two age groups (`neonates` aged 0-27 days, and `child` aged 1-59 months) across countries (specific estimates for `Bangladesh`, `Ethiopia`, `Kenya`, `Mali`, `Mozambique`, `Sierra Leone`, and `South Africa`, and a combined estimate for all other countries as `other`), enabling global calibration.
 
-### Input as specific cause
+For each age group, misclassification matrices are provided for the following broad causes:
+
+-   <strong><u>Neonates</u></strong>: `"congenital_malformation"`, `"pneumonia"`, `"sepsis_meningitis_inf"` (sepsis/meningitis/infections), `"ipre"` (intrapartum-related events), `"other"`, and `"prematurity"`.
+-   <strong><u>Children</u></strong>: `"malaria"`, `"pneumonia"`, `"diarrhea"`, `"severe_malnutrition"`, `"hiv"`, `"injury"`, `"other"`, `"other_infections"`, and `"nn_causes"` (neonatal causes consisting of IPRE, congenital malformation, and prematurity).
+
+If misclassification matrices are available for the age group, algorithm, and country of interest, users only need to provide `va_data` with algorithm name, `age_group`, and `country`, and `vacalibration()` automatically fetches the appropriate misclassification matrix from `CCVA_missmat`. If no matching matrices are available, users must provide them (see the `missmat` argument in `vacalibration()` for details).
+
+This function also supports posterior samples of misclassification matrices, such as those included in `CCVA_missmat` (available from the [GitHub repository](https://github.com/sandy-pramanik/CCVA-Misclassification-Matrices)). For the example above, the samples can be accessed as `CCVA_missmat$neonate$eava$postsamples$Mozambique`.
+
+[Back to top](#top)
+
+# Implementing VA-Calibration
+
+In the following example, we demonstrate how `vacalibration()` can be used to perform algorithm-specific and ensemble calibrations, and generate calibrated CSMF estimates. For brevity, we exclude the diagnostic and summary plots as well as the detailed output of the posterior sampling.
+
+[Back to top](#top)
+
+## Integration with VA Workflow
+
+### Algorithm-Specific
+
+Below is an example of EAVA-specific VA-Calibration for neonates in Mozambique:
 
 ```{r, eval=F, results = 'hide', message = FALSE, warning = FALSE, fig.show = "hide"}
-calib_out_specific = vacalibration(va_data = setNames(list(comsamoz_public_openVAout$data),
-                                                      list(comsamoz_public_openVAout$va_algo)),
-                                   age_group = comsamoz_public_openVAout$age_group,
-                                   country = "Mozambique")
+vacalib_eava = vacalibration(va_data = list("eava" = comsamoz_CCVAoutput$neonate$eava), 
+                             age_group = "neonate", country = "Mozambique")
+
+# CSMF
+vacalib_eava$p_uncalib[1,]  # uncalibrated estimates
+vacalib_eava$p_calib[1,,]  # posterior of calibrated estimates
+vacalib_eava$pcalib_postsumm[1,,]  # posterior summary of calibrated estimates
+
+# death counts
+vacalib_eava$va_deaths_uncalib[1,]  # uncalibrated
+vacalib_eava$va_deaths_calib_algo[1,]  # calibrated
 ```
 
-Below is how we can compare uncalibrated CSMF estimates and posterior summary of calibrated CSMF estimates:
+InSilicoVA and InterVA-specific VA-Calibration can be similarly performed by replacing `va_data = list("insilicova" = comsamoz_CCVAoutput$neonate$insilicova)` and `va_data = list("interva" = comsamoz_CCVAoutput$neonate$interva)`.
 
-```{r, eval=F}
-round(calib_out_specific$p_uncalib, 3) # uncalibrated (rounded upto 3 significant digits)
-round(calib_out_specific$pcalib_postsumm["insilicova",,], 3) # calibrated (rounded upto 3 significant digits)
-```
+Use `missmat_type` to control uncertainty propagation. `missmat_type = "fixed"` calibrates using a fixed misclassification matrix (by default, the average matrix in `CCVA_missmat`) and does not propagate uncertainty. `missmat_type = "prior"` (package default) or `missmat_type = "samples"` propagates uncertainty and is recommended.
+
+To calibrate with posterior samples, use `missmat_type = "samples"` and `missmat = CCVA_missmat$neonate$eava$postsamples$Mozambique` in the example. Note: `CCVA_missmat` included in the package does not contain posterior samples due to file size limits. If needed, obtain them from the `CCVA_missmat` object in the [GitHub repository](https://github.com/sandy-pramanik/CCVA-Misclassification-Matrices) and pass them to `vacalibration()`.
 
 [Back to top](#top)
 
+### Ensemble
 
-### Input as broad cause
-
-```{r, eval=F, results = 'hide', message = FALSE, warning = FALSE, fig.show = "hide"}
-calib_out_broad = vacalibration(va_data = setNames(list(comsamoz_public_broad$data),
-                                                   list(comsamoz_public_broad$va_algo)),
-                                age_group = comsamoz_public_broad$age_group,
-                                country = "Mozambique")
-```
-
-
-### Input as broad cause death counts
+To perform ensemble calibration, provide a list algorithm-specific CCVA outputs. This performs both algorithm-specific calibration and an ensemble calibration. Set `ensemble = FALSE` to turn off ensemble calibration.
 
 ```{r, eval=F, results = 'hide', message = FALSE, warning = FALSE, fig.show = "hide"}
-calib_out_deathcount = vacalibration(va_data = setNames(list(colSums(comsamoz_public_broad$data)),
-                                                        list(comsamoz_public_broad$va_algo)),
-                                     age_group = comsamoz_public_broad$age_group,
-                                     country = "Mozambique")
+vacalib_ensemble = 
+  vacalibration(va_data = list("eava" = comsamoz_CCVAoutput$neonate$eava,
+                               "insilicova" = comsamoz_CCVAoutput$neonate$insilicova,
+                               "interva" = comsamoz_CCVAoutput$neonate$interva),
+                age_group = "neonate", country = "Mozambique")
+
+# CSMF
+vacalib_ensemble$p_uncalib  # uncalibrated estimates
+
+# posterior of calibrated CSMF
+vacalib_ensemble$p_calib["eava",,]  # EAVA
+vacalib_ensemble$p_calib["insilicova",,]  # InSilicoVA
+vacalib_ensemble$p_calib["interva",,]  # InterVA
+vacalib_ensemble$p_calib["ensemble",,]  # ensemble
+
+# posterior summary of calibrated CSMF
+vacalib_ensemble$pcalib_postsumm["eava",,]  # EAVA
+vacalib_ensemble$pcalib_postsumm["insilicova",,]  # InSilicoVA
+vacalib_ensemble$pcalib_postsumm["interva",,]  # InterVA
+vacalib_ensemble$pcalib_postsumm["ensemble",,]  # ensemble
+
+# death counts
+vacalib_ensemble$va_deaths_uncalib  # uncalibrated
+vacalib_ensemble$va_deaths_calib_algo  # calibrated counts from algorithm-specific calibration
+vacalib_ensemble$va_deaths_calib_ensemble  # calibrated counts from ensemble calibration
 ```
 
+If `missmat` includes user-specified matrices, then `age_group` and `country` are not required.
 
-### Comparison of estimates
-
-```{r, eval=F}
-#################################### uncalibrated ####################################
-round(calib_out_specific$p_uncalib, 3)  # specific cause
-round(calib_out_broad$p_uncalib, 3)  # broad cause
-round(calib_out_deathcount$p_uncalib, 3)  # broad-cause-specific death count
-
-
-#################################### calibrated ####################################
-round(calib_out_specific$pcalib_postsumm["insilicova",,], 3)  # specific cause
-round(calib_out_broad$pcalib_postsumm["insilicova",,], 3)  # broad cause
-round(calib_out_deathcount$pcalib_postsumm["insilicova",,], 3)  # broad-cause-specific death count
-```
+Calibration for children can be performed similarly.
 
 [Back to top](#top)
 
+### Visualization
 
-## Fetching stored misclassification estimates by default
+The output of the `vacalibration()` function can be directly passed to `plot_vacalib()` to generate a plot that summarizes the main components of VA-Calibration. By default, it displays the misclassification matrix used for calibration and shows both the uncalibrated and calibrated CSMF estimates. For instance, when calibrating for EAVA as demonstrated above, the summary plot can be obtained as:
 
 ```{r, eval=F, results = 'hide', message = FALSE, warning = FALSE, fig.show = "hide"}
-# default
-calib_out_specific = vacalibration(va_data = setNames(list(comsamoz_public_openVAout$data),
-                                                      list(comsamoz_public_openVAout$va_algo)),
-                                   age_group = comsamoz_public_openVAout$age_group,
-                                   country = "Mozambique")
-
-# misclassification estimates provided by user
-calib_out_specific_mmat = vacalibration(va_data = setNames(list(comsamoz_public_openVAout$data),
-                                                           list(comsamoz_public_openVAout$va_algo)),
-                                        Mmat.asDirich = setNames(list(Mmat_champs[[comsamoz_public_openVAout$age_group]][[comsamoz_public_openVAout$va_algo]]$asDirich[["Mozambique"]]),
-                                                           list(comsamoz_public_openVAout$va_algo)),
-                                   age_group = comsamoz_public_openVAout$age_group,
-                                   country = "Mozambique")
+plot_vacalib(vacalib_fit = vacalib_eava)
 ```
-
-Below is a comparison of uncalibrated and calibrated CSMF estimates
-
-```{r, eval=F}
-#################################### uncalibrated ####################################
-round(calib_out_specific$p_uncalib, 3)  # default
-round(calib_out_specific_mmat$p_uncalib, 3)  # user provided misclassification estimate
-
-
-#################################### calibrated ####################################
-round(calib_out_specific$pcalib_postsumm["insilicova",,], 3)  # default
-round(calib_out_specific_mmat$pcalib_postsumm["insilicova",,], 3)  # user provided misclassification estimate
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("figures/vacalib_eava_plot.png")
 ```
+Grey rows and columns in the misclassification matrix indicate causes that are not calibrated. Set `toplot="missmat"` or `csmf` in `plot_vacalib()` to only plot the misclassification matrix or the comparison of CSMF estimates. This similarly applies to InSilicoVA, InterVA, and ensemble VA-Calibration. The plotted misclassification matrix depends on the `missmat_type` specified in `vacalibration()`. If `missmat_type="fixed"`, the fixed misclassification matrix used in calibration is plotted. If `missmat_type` equals `"prior"` or `"samples"`, the average misclassification matrix is displayed.
 
 [Back to top](#top)
 
+## Causes Outside CHAMPS Broad Causes
 
-## Multiple Algorithms
+As discussed in [CCVA Misclassification Matrices](#sec-CCVA_missmat), the matrices in `CCVA_missmat` are available for CHAMPS broad causes. In cases where the causes in `va_data` are not a subset of the CHAMPS broad causes, a cause-mapping step is required. One such application is the [CA CODE](https://childmortality.org/about) project, which compiles VA-based death counts across multiple countries. For example, a study in Bangladesh analyzed 302 neonatal deaths using EAVA, and reported 82 deaths due to *Intrapartum*, 17 due to *Congenital*, 6 due to *Diarrhoeal*, 33 due to *LRI*, 108 due to *Sepsis*, 35 due to *Preterm*, 14 due to *Tetanus*, and 7 due to *Other*.
 
-For example, let below are broad-cause-specific death counts based on EAVA and InSilicoVA among neonate in Mozambique:
-
-```{r, eval=F}
-va_data_example = list("eava" = c("congenital_malformation" = 40, "pneumonia" = 175,
-                                  "sepsis_meningitis_inf" = 265, "ipre" = 220,
-                                  "other" = 30, "prematurity" = 170),
-                       "insilicova" = c("congenital_malformation" = 5, "pneumonia" = 145,
-                                        "sepsis_meningitis_inf" = 370, "ipre" = 330,
-                                        "other" = 60, "prematurity" = 290))
-```
-
-The data can be similarly input as above. When multiple algorithms are provided, `vacalibration()` by default performs algorithm-specific calibration and an ensemble calibration that combines all algorithms to provide a calibrated CSMF estimate for the population.
+In such cases, `vacalibration()` requires specifying `studycause_map`, a mapping from the study causes to the CHAMPS broad causes. For this example, following expert guidance, we define:
 
 ```{r, eval=F, results = 'hide', message = FALSE, warning = FALSE, fig.show = "hide"}
-calib_out_ensemble = vacalibration(va_data = va_data_example,
-                                   age_group = "neonate", country = "Mozambique")
+set_studycause_map = c("Intrapartum" = "ipre", "Congenital" = "congenital_malformation",
+                       "Diarrhoeal" = "sepsis_meningitis_inf", "LRI" = "pneumonia",
+                       "Sepsis" = "sepsis_meningitis_inf", "Preterm" = "prematurity", 
+                       "Tetanus" = "sepsis_meningitis_inf", "Other" = "other")
 ```
 
-Here is a comparison of uncalibrated, and algorithm-specific and ensemble calibration:
+This mapping converts the misclassification matrices in `CCVA_missmat` to align with the study causes, enabling VA-Calibration. This can then be implemented as:
 
-```{r, eval=F}
-round(calib_out_ensemble$p_uncalib, 3) # uncalibrated
-round(calib_out_ensemble$pcalib_postsumm["eava",,], 3) # EAVA-specific calibration
-round(calib_out_ensemble$pcalib_postsumm["insilicova",,], 3) # InSilicoVA-specific calibration
-round(calib_out_ensemble$pcalib_postsumm["ensemble",,], 3) # Ensemble calibration
+```{r, eval=F, results = 'hide', message = FALSE, warning = FALSE, fig.show = "hide"}
+
+
+vacalib_cacode = vacalibration(va_data = list("eava" = c("Intrapartum" = 82, "Congenital" = 17,
+                                                         "Diarrhoeal" = 6, "LRI" = 33,
+                                                         "Sepsis" = 108, "Preterm" = 35, 
+                                                         "Tetanus" = 14, "Other" = 7)), 
+                               age_group = "neonate", country = "Bangladesh",
+                               studycause_map = set_studycause_map)
+
+# CSMF
+vacalib_cacode$p_uncalib[1,]  # uncalibrated estimates
+vacalib_cacode$p_calib[1,,]  # posterior of calibrated estimates
+vacalib_cacode$pcalib_postsumm[1,,]  # posterior summary of calibrated estimates
+
+# death counts
+vacalib_cacode$va_deaths_uncalib[1,]  # uncalibrated
+vacalib_cacode$va_deaths_calib_algo[1,]  # calibrated
 ```
 
-Set `ensemble = F` to turn off ensemble calibration in `vacalibration()`.
+This is required only when using the misclassification matrices from `CCVA_missmat`. If `missmat` includes user-specified matrices, then `age_group`, `country`, and `studycause_map` are not required. Like in algorithm-specific calibration described above, `vacalib_cacode` can be similarly input into `plot_vacalib()` to generate the summary plot of the misclassification matrix and CSMF estimates.
 
 [Back to top](#top)

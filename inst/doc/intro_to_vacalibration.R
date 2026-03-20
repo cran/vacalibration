@@ -1,30 +1,6 @@
-## ----include = FALSE----------------------------------------------------------
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-
 ## ----results='asis', echo=FALSE-----------------------------------------------
 cat('
 <style>
-  h1 {
-    font-size: 30px;
-    margin-top: 50px;  /* increase spacing above headings */
-  }
-  h2 {
-    font-size: 22px;
-    margin-top: 22px;  /* increase spacing above headings */
-  }
-  h3 {
-    font-size: 18px;
-    margin-top: 18px;  /* increase spacing above headings */
-  }
-  body {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 20px;
-    font-size: 110%
-  }
   pre {
     position: relative;
   }
@@ -43,21 +19,6 @@ cat('
   }
   .copy-btn:hover {
     opacity: 1;
-  }
-  #TOC {
-    font-size: 16px; /* Adjust as needed for the overall TOC container */
-  }
-  #TOC ul li {
-    font-size: 14px; /* Adjust as needed for individual list items */
-  }
-  #TOC ul li a {
-    font-size: 20px; /* Adjust as needed for the links within the list items */
-  }
-  .tocify {
-    width: 1000px !important; /* adjust width as needed */
-  }
-  #vignette {
-    margin-left: 10px !important; /* match or slightly more than .tocify width */
   }
 </style>
 
@@ -85,102 +46,104 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 ')
 
+## ----include = FALSE----------------------------------------------------------
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
 ## ----eval=F-------------------------------------------------------------------
-# install.packages("vacalibration") # install
+# install.packages("vacalibration")
 # library(vacalibration) # load
 
 ## ----eval=F-------------------------------------------------------------------
-# data(comsamoz_public_openVAout)  # load data in R environment
-# 
-# class(comsamoz_public_openVAout)  # list
-# names(comsamoz_public_openVAout)  # different components
-# 
-# comsamoz_public_openVAout$age_group  # age group
-# comsamoz_public_openVAout$va_algo  # algorithm
-# head(comsamoz_public_openVAout$data)  # head of the specific COD data
-# # for these 6 individuals, the causes of deaths are "Other and unspecified neonatal CoD",
-# # "Birth asphyxia", "Neonatal sepsis", "Birth asphyxia", "Birth asphyxia", "Neonatal sepsis"
+# # install "devtools" R package
+# devtools::install_github("sandy-pramanik/vacalibration")
+# library(vacalibration) # load
 
 ## ----eval=F-------------------------------------------------------------------
-# data(comsamoz_public_broad)  # load data in R environment
-# head(comsamoz_public_broad$data)  # head of the stored broad COD data
-# # for these 6 individuals, the causes of deaths are "other", "ipre", "sepsis_meningitis_inf",
-# # "ipre", "ipre", "sepsis_meningitis_inf"
+# data("comsamoz_CCVAoutput")
+# 
+# comsamoz_CCVAoutput$neonate$eava  # output from EAVA for neonates
+# comsamoz_CCVAoutput$neonate$insilicova  # output from InSilicoVA for neonates
+# comsamoz_CCVAoutput$neonate  # list of outputs for neonates from EAVA, InSilicoVA, and InterVA
+
+## ----eval=F-------------------------------------------------------------------
+# data("CCVA_missmat")
+
+## ----eval=F-------------------------------------------------------------------
+# CCVA_missmat$neonate$eava$postmean$Mozambique  # average
+# CCVA_missmat$neonate$eava$asDirich$Mozambique  # Dirichlet approximation
+# CCVA_missmat$neonate$eava$postsumm$Mozambique  # summary of distribution
 
 ## ----eval=F, results = 'hide', message = FALSE, warning = FALSE, fig.show = "hide"----
-# calib_out_specific = vacalibration(va_data = setNames(list(comsamoz_public_openVAout$data),
-#                                                       list(comsamoz_public_openVAout$va_algo)),
-#                                    age_group = comsamoz_public_openVAout$age_group,
-#                                    country = "Mozambique")
-
-## ----eval=F-------------------------------------------------------------------
-# round(calib_out_specific$p_uncalib, 3) # uncalibrated (rounded upto 3 significant digits)
-# round(calib_out_specific$pcalib_postsumm["insilicova",,], 3) # calibrated (rounded upto 3 significant digits)
+# vacalib_eava = vacalibration(va_data = list("eava" = comsamoz_CCVAoutput$neonate$eava),
+#                              age_group = "neonate", country = "Mozambique")
+# 
+# # CSMF
+# vacalib_eava$p_uncalib[1,]  # uncalibrated estimates
+# vacalib_eava$p_calib[1,,]  # posterior of calibrated estimates
+# vacalib_eava$pcalib_postsumm[1,,]  # posterior summary of calibrated estimates
+# 
+# # death counts
+# vacalib_eava$va_deaths_uncalib[1,]  # uncalibrated
+# vacalib_eava$va_deaths_calib_algo[1,]  # calibrated
 
 ## ----eval=F, results = 'hide', message = FALSE, warning = FALSE, fig.show = "hide"----
-# calib_out_broad = vacalibration(va_data = setNames(list(comsamoz_public_broad$data),
-#                                                    list(comsamoz_public_broad$va_algo)),
-#                                 age_group = comsamoz_public_broad$age_group,
-#                                 country = "Mozambique")
+# vacalib_ensemble =
+#   vacalibration(va_data = list("eava" = comsamoz_CCVAoutput$neonate$eava,
+#                                "insilicova" = comsamoz_CCVAoutput$neonate$insilicova,
+#                                "interva" = comsamoz_CCVAoutput$neonate$interva),
+#                 age_group = "neonate", country = "Mozambique")
+# 
+# # CSMF
+# vacalib_ensemble$p_uncalib  # uncalibrated estimates
+# 
+# # posterior of calibrated CSMF
+# vacalib_ensemble$p_calib["eava",,]  # EAVA
+# vacalib_ensemble$p_calib["insilicova",,]  # InSilicoVA
+# vacalib_ensemble$p_calib["interva",,]  # InterVA
+# vacalib_ensemble$p_calib["ensemble",,]  # ensemble
+# 
+# # posterior summary of calibrated CSMF
+# vacalib_ensemble$pcalib_postsumm["eava",,]  # EAVA
+# vacalib_ensemble$pcalib_postsumm["insilicova",,]  # InSilicoVA
+# vacalib_ensemble$pcalib_postsumm["interva",,]  # InterVA
+# vacalib_ensemble$pcalib_postsumm["ensemble",,]  # ensemble
+# 
+# # death counts
+# vacalib_ensemble$va_deaths_uncalib  # uncalibrated
+# vacalib_ensemble$va_deaths_calib_algo  # calibrated counts from algorithm-specific calibration
+# vacalib_ensemble$va_deaths_calib_ensemble  # calibrated counts from ensemble calibration
 
 ## ----eval=F, results = 'hide', message = FALSE, warning = FALSE, fig.show = "hide"----
-# calib_out_deathcount = vacalibration(va_data = setNames(list(colSums(comsamoz_public_broad$data)),
-#                                                         list(comsamoz_public_broad$va_algo)),
-#                                      age_group = comsamoz_public_broad$age_group,
-#                                      country = "Mozambique")
+# plot_vacalib(vacalib_fit = vacalib_eava)
 
-## ----eval=F-------------------------------------------------------------------
-# #################################### uncalibrated ####################################
-# round(calib_out_specific$p_uncalib, 3)  # specific cause
-# round(calib_out_broad$p_uncalib, 3)  # broad cause
-# round(calib_out_deathcount$p_uncalib, 3)  # broad-cause-specific death count
-# 
-# 
-# #################################### calibrated ####################################
-# round(calib_out_specific$pcalib_postsumm["insilicova",,], 3)  # specific cause
-# round(calib_out_broad$pcalib_postsumm["insilicova",,], 3)  # broad cause
-# round(calib_out_deathcount$pcalib_postsumm["insilicova",,], 3)  # broad-cause-specific death count
+## ----echo=FALSE, out.width="100%"---------------------------------------------
+knitr::include_graphics("figures/vacalib_eava_plot.png")
 
 ## ----eval=F, results = 'hide', message = FALSE, warning = FALSE, fig.show = "hide"----
-# # default
-# calib_out_specific = vacalibration(va_data = setNames(list(comsamoz_public_openVAout$data),
-#                                                       list(comsamoz_public_openVAout$va_algo)),
-#                                    age_group = comsamoz_public_openVAout$age_group,
-#                                    country = "Mozambique")
-# 
-# # misclassification estimates provided by user
-# calib_out_specific_mmat = vacalibration(va_data = setNames(list(comsamoz_public_openVAout$data),
-#                                                            list(comsamoz_public_openVAout$va_algo)),
-#                                         Mmat.asDirich = setNames(list(Mmat_champs[[comsamoz_public_openVAout$age_group]][[comsamoz_public_openVAout$va_algo]]$asDirich[["Mozambique"]]),
-#                                                            list(comsamoz_public_openVAout$va_algo)),
-#                                    age_group = comsamoz_public_openVAout$age_group,
-#                                    country = "Mozambique")
-
-## ----eval=F-------------------------------------------------------------------
-# #################################### uncalibrated ####################################
-# round(calib_out_specific$p_uncalib, 3)  # default
-# round(calib_out_specific_mmat$p_uncalib, 3)  # user provided misclassification estimate
-# 
-# 
-# #################################### calibrated ####################################
-# round(calib_out_specific$pcalib_postsumm["insilicova",,], 3)  # default
-# round(calib_out_specific_mmat$pcalib_postsumm["insilicova",,], 3)  # user provided misclassification estimate
-
-## ----eval=F-------------------------------------------------------------------
-# va_data_example = list("eava" = c("congenital_malformation" = 40, "pneumonia" = 175,
-#                                   "sepsis_meningitis_inf" = 265, "ipre" = 220,
-#                                   "other" = 30, "prematurity" = 170),
-#                        "insilicova" = c("congenital_malformation" = 5, "pneumonia" = 145,
-#                                         "sepsis_meningitis_inf" = 370, "ipre" = 330,
-#                                         "other" = 60, "prematurity" = 290))
+# set_studycause_map = c("Intrapartum" = "ipre", "Congenital" = "congenital_malformation",
+#                        "Diarrhoeal" = "sepsis_meningitis_inf", "LRI" = "pneumonia",
+#                        "Sepsis" = "sepsis_meningitis_inf", "Preterm" = "prematurity",
+#                        "Tetanus" = "sepsis_meningitis_inf", "Other" = "other")
 
 ## ----eval=F, results = 'hide', message = FALSE, warning = FALSE, fig.show = "hide"----
-# calib_out_ensemble = vacalibration(va_data = va_data_example,
-#                                    age_group = "neonate", country = "Mozambique")
-
-## ----eval=F-------------------------------------------------------------------
-# round(calib_out_ensemble$p_uncalib, 3) # uncalibrated
-# round(calib_out_ensemble$pcalib_postsumm["eava",,], 3) # EAVA-specific calibration
-# round(calib_out_ensemble$pcalib_postsumm["insilicova",,], 3) # InSilicoVA-specific calibration
-# round(calib_out_ensemble$pcalib_postsumm["ensemble",,], 3) # Ensemble calibration
+# 
+# 
+# vacalib_cacode = vacalibration(va_data = list("eava" = c("Intrapartum" = 82, "Congenital" = 17,
+#                                                          "Diarrhoeal" = 6, "LRI" = 33,
+#                                                          "Sepsis" = 108, "Preterm" = 35,
+#                                                          "Tetanus" = 14, "Other" = 7)),
+#                                age_group = "neonate", country = "Bangladesh",
+#                                studycause_map = set_studycause_map)
+# 
+# # CSMF
+# vacalib_cacode$p_uncalib[1,]  # uncalibrated estimates
+# vacalib_cacode$p_calib[1,,]  # posterior of calibrated estimates
+# vacalib_cacode$pcalib_postsumm[1,,]  # posterior summary of calibrated estimates
+# 
+# # death counts
+# vacalib_cacode$va_deaths_uncalib[1,]  # uncalibrated
+# vacalib_cacode$va_deaths_calib_algo[1,]  # calibrated
 

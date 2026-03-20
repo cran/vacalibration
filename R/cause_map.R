@@ -1,11 +1,15 @@
-#' Broad Cause Mapping
+#' Deriving Broad Cause of Death from CCVA Outputs
 #'
-#' Maps individual-level specific (high resolution) cause of death (\code{codEAVA()} function
-#' in \code{EAVA} and \code{crossVA()} function in \code{openVA}) to broad causes.
+#' Takes individual-level cause of deaths (output from CCVA algorithms) as input, and maps them to pre-defined broad causes.
 #'
-#' @param df Data frame. Outputs from \code{crossVA()} function in \code{openVA} for EAVA and \code{crossVA()} function in \code{openVA} for InSilicoVA and InterVA
 #'
-#' @param age_group Character. The age group of interest. "neonate" for deaths between 0-27 days, and "child" for 1-59 months.
+#' @param df Outputs from \code{codEAVA()} in \code{EAVA} for EAVA, and \code{codeVA()} and \code{prepCalibration()} in \code{openVA} for InSilicoVA and InterVA
+#'
+#'
+#' @param age_group Character. Indicates age group.
+#'
+#' \code{"neonate"} for deaths with 0-27 days of birth, and \code{"child"} for 1-59 months of birth.
+#'
 #'
 #' @return Matrix. Rows are individuals. Columns are broad causes.
 #'         This is a binary matrix (entries 0 or 1) with 1 indicating the broad cause of death for the individual.
@@ -14,33 +18,40 @@
 #'
 #' @examples
 #'
-#' ## COMSA-Mozambique Publicly Available Version
-#' ## Example Individual-Level Specific (High-Resolution) Cause of Death Data
-#' data(comsamoz_public_openVAout)
-#' head(comsamoz_public_openVAout$data)  # head of the data
-#' comsamoz_public_openVAout$data[1,]  # ID and specific cause of death for individual 1
+#' ## Publicly Available Cause-of-Death (COD) Data from COMSA–Mozambique
+#' comsamoz_CCVAoutput$neonate$eava # output from EAVA algorithm for age group "neonate"
+#' head(comsamoz_CCVAoutput$neonate$eava)  # specific COD for the first 6 deaths
 #'
-#' ## mapped to broad cause
-#' ## same as comsamoz_public_broad$data
-#' comsamoz_public_asbroad = cause_map(df = comsamoz_public_openVAout$data, age_group = "neonate")
-#' head(comsamoz_public_asbroad)
+#' ## broad cause mapping
+#' mapped_broad_cause = cause_map(df = comsamoz_CCVAoutput$neonate$eava, age_group = "neonate")
+#' head(mapped_broad_cause)  # broad COD for the first 6 deaths
 #'
-#' ### store broad cause map of the data
-#' data(comsamoz_public_broad)
-#' head(comsamoz_public_broad$data) # identical to head(comsamoz_public_asbroad)
-#'
-#' @importFrom stats model.matrix quantile
+#' @importFrom stats model.matrix quantile setNames
 #' @importFrom utils head
+#' @importFrom openVA getIndivProb
 #'
 #' @export
 cause_map <- function(df,age_group){
 
-  if(ncol(df)==2){
+  if(ncol(df)==2 && "cause" %in% colnames(df)){
     df <- subset(df, cause != "Unspecified")
-
+    df$cause <- tolower(df$cause)
     df <- reshape2::dcast(df,ID~cause,fun.aggregate = function(x){as.integer(length(x) > 0)}) # Put EAVA in wide format to match output of getIndivProb()
     row.names(df) <- df$ID
     df$ID <- NULL
+  }
+
+  if(ncol(df)==2 && "cause1" %in% colnames(df)){
+    df <- subset(df, cause1 != "Unspecified")
+    df$cause1 <- tolower(df$cause1)
+    df <- reshape2::dcast(df,ID~cause1,fun.aggregate = function(x){as.integer(length(x) > 0)}) # Put 2-col openVA in wide format to match output of getIndivProb()
+    names(df)[names(df) == "cause1"] <- "cause"
+    row.names(df) <- df$ID
+    df$ID <- NULL
+  }
+
+  if(class(df) %in% c("interVA5","insilico")){
+    df <- as.data.frame(openVA::getIndivProb(df))
   }
 
   df <- as.matrix(df)
@@ -235,9 +246,14 @@ cause_map <- function(df,age_group){
   model_broad_probs <- model_broad_probs %*% mn
   colnames(model_broad_probs) <- gsub("colnames\\(model_broad_probs\\)", "",
                                       colnames(model_broad_probs))
-  if( !"other" %in% colnames(model_broad_probs) ){
-    model_broad_probs <- cbind(model_broad_probs, other = rep(0, nrow(model_broad_probs)))
+
+  for (cause in causes) {
+    if (!(cause %in% colnames(model_broad_probs))) {
+      model_broad_probs <- cbind(model_broad_probs,
+                                 setNames(data.frame(rep(0, nrow(model_broad_probs))), cause))
+    }
   }
+
   model_broad_probs <- model_broad_probs[,causes]
 
   model_broad_probs <- as.data.frame(model_broad_probs)
